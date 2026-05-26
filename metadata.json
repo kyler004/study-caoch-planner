@@ -1,0 +1,6 @@
+{
+  "name": "Study Schedule Tracker",
+  "description": "An all-in-one personalized dashboard for students to manage study timetables, plan exams with a countdown calendar, run focus timer sessions, organize tasks with a Gantt chart or Kanban board, and send email progress reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
