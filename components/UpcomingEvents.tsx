@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStudy } from '../context/StudyContext';
 import { Calendar, Trash2, Plus, X, ChevronRight } from 'lucide-react';
 
@@ -11,6 +11,11 @@ export default function UpcomingEvents() {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('2026-06-12');
   const [note, setNote] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,7 +139,9 @@ export default function UpcomingEvents() {
         ) : null}
 
         <div className="space-y-4">
-          {exams.length === 0 ? (
+          {!mounted ? (
+            <p className="text-xs text-slate-400 italic text-center py-6">Checking event schedules...</p>
+          ) : exams.length === 0 ? (
             <p className="text-xs text-slate-400 italic text-center py-6">No upcoming events or tests</p>
           ) : (
             exams.map((exam) => {
