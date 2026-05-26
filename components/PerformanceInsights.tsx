@@ -7,7 +7,7 @@ import { googleSignIn, logout, initAuth } from '../lib/firebase';
 import { User } from 'firebase/auth';
 
 export default function PerformanceInsights() {
-  const { studyHours, completionRate, focusScore } = useStudy();
+  const { studyHours, completionRate, focusScore, ganttItems } = useStudy();
   const [reportEmail, setReportEmail] = useState('rayann.kenne@facsciences-uy1.cm');
   const [wasSent, setWasSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -69,12 +69,17 @@ export default function PerformanceInsights() {
     }
   };
 
-  const subjectBreakdown = [
-    { name: 'Calculus II', hours: 14.5, color: 'bg-indigo-500', barWidth: '72%' },
-    { name: 'Biology 101', hours: 9.0, color: 'bg-sky-400', barWidth: '45%' },
-    { name: 'Macro-Econ', hours: 7.5, color: 'bg-amber-400', barWidth: '38%' },
-    { name: 'History 404', hours: 3.5, color: 'bg-purple-400', barWidth: '18%' },
-  ];
+  const subjectBreakdown = ganttItems.map((item, idx) => {
+    const bgColors = ['bg-indigo-500', 'bg-sky-400', 'bg-amber-400', 'bg-purple-500', 'bg-emerald-500'];
+    const color = bgColors[idx % bgColors.length];
+    return {
+      name: item.subject,
+      hours: parseFloat(((item.percent / 100) * studyHours).toFixed(1)),
+      color,
+      barWidth: `${item.percent}%`,
+      percent: item.percent,
+    };
+  });
 
   const handleSendReport = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +91,10 @@ export default function PerformanceInsights() {
       // 100% Real API integration using Gmail Send endpoint when user is authenticated with Google OAuth!
       try {
         const subject = `Your Dynamic StudyFlow Weekly Performance Report (${new Date().toLocaleDateString()})`;
+        const breakdownHTML = subjectBreakdown.length > 0
+          ? subjectBreakdown.map(item => `<li><strong>${item.name}:</strong> ${item.hours} hours (${item.percent}%)</li>`).join('')
+          : '<li>No dynamic subjects configured in current task timeline.</li>';
+
         const htmlBody = `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
             <div style="border-bottom: 2px solid #6366f1; padding-bottom: 16px; margin-bottom: 24px;">
@@ -104,7 +113,7 @@ export default function PerformanceInsights() {
                 </tr>
                 <tr>
                   <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #475569; font-size: 14px;">Cognitive Velocity</td>
-                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 700; color: #10b981; font-size: 14px;">↑ 8.4% faster</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 700; color: #10b981; font-size: 14px;">↑ Active Rate</td>
                 </tr>
                 <tr>
                   <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #475569; font-size: 14px;">Priority Task Completion</td>
@@ -116,24 +125,21 @@ export default function PerformanceInsights() {
                 </tr>
               </table>
             </div>
-
+ 
             <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Weekly Subject Load Breakdown</h3>
             <div style="font-size: 14px; color: #334155; line-height: 1.5; margin-bottom: 24px;">
               <ul style="padding-left: 20px; margin: 0 0 16px 0;">
-                <li><strong>Calculus II:</strong> 14.5 hours (72%)</li>
-                <li><strong>Biology 101:</strong> 9.0 hours (45%)</li>
-                <li><strong>Macro-Econ:</strong> 7.5 hours (38%)</li>
-                <li><strong>History 404:</strong> 3.5 hours (18%)</li>
+                ${breakdownHTML}
               </ul>
             </div>
-
+ 
             <div style="background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 18px; border-radius: 8px; margin: 24px 0;">
               <strong style="color: #6d28d9; font-size: 14px; text-transform: uppercase;">StudyCoach Expert Recommendation</strong>
               <p style="margin: 6px 0 0 0; color: #5b21b6; font-size: 14px; line-height: 1.6;">
-                Your recall rating is superb in Macroeconomics but slightly lagging in Biology 101. We suggest scheduling a 25-minute Pomodoro session focused primarily on Biology Cell Structures before midnight tomorrow to maintain your target cognitive retention standard.
+                Keep iterating your spacing schedules. We suggest a 25-minute concentrated Pomodoro cycle addressing any delayed Gantt bar segments to maintain your highest target cognitive retention score.
               </p>
             </div>
-
+ 
             <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 32px; text-align: center;">
               <p style="color: #94a3b8; font-size: 11px; margin: 0;">This email was dispatched securely from your Google OAuth email address via Google Workspace APIs.</p>
               <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0;">StudyFlow Inc. © 2026</p>

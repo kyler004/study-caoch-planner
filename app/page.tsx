@@ -56,7 +56,18 @@ function DashboardGrid() {
 }
 
 function MainLayout() {
-  const { activeView, setActiveView, weeklyReportEnabled, setWeeklyReportEnabled, exams } = useStudy();
+  const { 
+    activeView, 
+    setActiveView, 
+    weeklyReportEnabled, 
+    setWeeklyReportEnabled, 
+    exams,
+    user,
+    loadingAuth,
+    login,
+    logoutUser
+  } = useStudy();
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -88,6 +99,110 @@ function MainLayout() {
     { view: 'gantt' as ViewType, label: 'Project Gantt', icon: <TableProperties size={16} /> },
     { view: 'insights' as ViewType, label: 'Performance Insights', icon: <TrendingUp size={16} /> },
   ];
+
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-905 flex flex-col items-center justify-center font-sans">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-xs font-mono mt-4 uppercase tracking-widest">Initialising Workspace...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row font-sans text-slate-100 overflow-hidden relative">
+        {/* Abstract background glow */}
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+        {/* Sidebar Info Panel */}
+        <div className="w-full md:w-[45%] bg-slate-950/80 p-8 md:p-12 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-between shrink-0 relative z-10">
+          <div className="flex items-center gap-3 text-indigo-400 font-bold text-xl tracking-tight select-none">
+            <div className="w-9 h-9 bg-indigo-500 rounded flex items-center justify-center text-white text-lg">Σ</div>
+            STUDYFLOW
+          </div>
+
+          <div className="my-12 space-y-6">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded text-[10px] font-bold uppercase tracking-widest font-mono">
+              <Sparkles size={11} className="text-yellow-400 fill-yellow-400 animate-pulse" /> SPACING & ACTIVE RECALLS
+            </div>
+            
+            <h1 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-none uppercase">
+              Unlock Your <span className="text-indigo-400 underline decoration-indigo-500 underline-offset-4">Academic Velocity</span>
+            </h1>
+
+            <p className="text-sm text-slate-400 leading-relaxed font-sans font-medium">
+              A premium, offline-first study suite centering Pomodoro cycles, interactive task priority lists, customizable Gantt timetables, and automated Gmail report dispatch.
+            </p>
+          </div>
+
+          <div className="text-xs text-slate-500 font-mono tracking-wider">
+            STUDYFLOW INC • © 2026 AUTHENTIC SYSTEM
+          </div>
+        </div>
+
+        {/* Auth Interaction Form Panel */}
+        <div className="flex-1 flex flex-col justify-center items-center p-8 md:p-16 relative z-10 bg-slate-900/40">
+          <div className="w-full max-w-md bg-slate-955 p-8 rounded-2xl border border-slate-800 gap-6 flex flex-col shadow-2xl">
+            <div className="text-center space-y-1.5">
+              <h2 className="text-lg font-bold text-white uppercase tracking-tight">Enterprise Credentials Interface</h2>
+              <p className="text-xs text-slate-400 font-medium">Link your Google Account securely in one-click for authenticated APIs</p>
+            </div>
+
+            {/* List of features unblocked by OAuth */}
+            <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-4 space-y-3.5 text-xs text-slate-300">
+              <div className="flex gap-3">
+                <CheckSquare size={16} className="text-indigo-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-white uppercase tracking-tight">Unified State Center</h4>
+                  <p className="text-[11px] text-slate-404 mt-0.5 font-medium">Synchronize prioritised tasks, active-recall exams lists, and timetables locally.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Mail size={16} className="text-indigo-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-white uppercase tracking-tight">Direct Gmail Dispatch</h4>
+                  <p className="text-[11px] text-slate-404 mt-0.5 font-medium">Securely send weekly performance breakdowns and coach recommendations to any address.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <BrainCircuit size={16} className="text-indigo-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-white uppercase tracking-tight">AI Academic Coach</h4>
+                  <p className="text-[11px] text-slate-404 mt-0.5 font-medium">Generate custom cognitive intervals directly referencing live dashboard states via Gemini API.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Google OAuth Login Action */}
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={login}
+                className="flex items-center justify-center gap-3 w-full py-3 bg-white text-slate-900 hover:bg-slate-100 font-bold rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer shadow-lg select-none active:scale-[0.98] outline-none"
+              >
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-4 h-4 shrink-0">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                </svg>
+                <span>Authenticate with Google</span>
+              </button>
+
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 leading-normal justify-center max-w-sm mx-auto text-center font-medium">
+                <AlertCircle size={12} className="text-slate-500 shrink-0 mt-0.5" />
+                <p>Firebase authentication secures OAuth callback tokens. No personal profile data or mail is permanently recorded.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
@@ -162,11 +277,37 @@ function MainLayout() {
               </span>
             </div>
 
-            <div className="flex items-center gap-3 border-l pl-6 border-slate-200 select-none">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-extrabold text-xs">
-                JD
+            <div className="flex items-center gap-4 border-l pl-6 border-slate-200 select-none">
+              <div className="flex items-center gap-3">
+                {user?.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt="Avatar" 
+                    className="w-8 h-8 rounded-full border border-indigo-200" 
+                    referrerPolicy="no-referrer" 
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-extrabold text-xs">
+                    {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                  </div>
+                )}
+                <div className="flex flex-col text-left">
+                  <span className="text-xs font-bold text-slate-700 hidden sm:inline leading-tight">
+                    {user?.displayName || 'Authorized User'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 hidden sm:inline leading-none mt-0.5">
+                    {user?.email}
+                  </span>
+                </div>
               </div>
-              <span className="text-xs font-bold text-slate-600 hidden sm:inline">John Doe</span>
+              
+              <button
+                onClick={logoutUser}
+                className="p-1 px-2.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded border border-slate-200 transition text-[10px] font-bold uppercase cursor-pointer shrink-0 select-none"
+                title="Disconnect account"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </header>

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { User } from 'firebase/auth';
+import { initAuth, googleSignIn, logout } from '../lib/firebase';
 
 export interface Task {
   id: string;
@@ -67,6 +69,13 @@ interface StudyContextProps {
   focusScore: number;
   weeklyReportEnabled: boolean;
   setWeeklyReportEnabled: (enabled: boolean) => void;
+
+  // Authentication
+  user: User | null;
+  authToken: string | null;
+  loadingAuth: boolean;
+  login: () => Promise<void>;
+  logoutUser: () => Promise<void>;
 }
 
 const StudyContext = createContext<StudyContextProps | undefined>(undefined);
@@ -74,37 +83,143 @@ const StudyContext = createContext<StudyContextProps | undefined>(undefined);
 export function StudyProvider({ children }: { children: React.ReactNode }) {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
 
-  // Focus Timer state
+  // Authentication State
+  const [user, setUser] = useState<User | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // Focus Timer state - starting fresh
   const [timerIsRunning, setTimerIsRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(25 * 60); // 25 mins initial
-  const [timeLeft, setTimeLeft] = useState(24 * 60 + 18); // default exactly 24:18 matching the wireframe
-  const [sessionTask, setSessionTask] = useState('Macroeconomics Reading');
-  const [studyHours, setStudyHours] = useState(34.5);
-  const [focusScore, setFocusScore] = useState(9.2);
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
 
-  // Tasks (draggable priority queue)
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: '1', title: 'Review Ch. 4 Notes', subject: 'Math', completed: false },
-    { id: '2', title: 'Lab Report Final', subject: 'Bio', completed: false },
-    { id: '3', title: 'Flashcard Reset', subject: 'General', completed: false },
-  ]);
+  // Lazy initialize client side states from localStorage to avoid Mock data while preserving client interactions
+  const [sessionTask, setSessionTask] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('studyflow_sessionTask') || 'Review Ch. 1 Notes';
+    }
+    return '';
+  });
 
-  // Exams
-  const [exams, setExams] = useState<Exam[]>([
-    { id: '1', title: 'Biology Midterm', date: '2026-06-12', note: 'Recall set for 24h prior' },
-    { id: '2', title: 'Econ Quiz #3', date: '2026-06-15', note: 'Preparation: 60%' },
-    { id: '3', title: 'Calculus Project', date: '2026-06-22', note: 'Draggable items available' },
-  ]);
+  const [studyHours, setStudyHours] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('studyflow_studyHours');
+      return saved ? parseFloat(saved) : 0.0;
+    }
+    return 0.0;
+  });
 
-  // Gantt Items
-  const [ganttItems, setGanttItems] = useState<GanttItem[]>([
-    { id: '1', subject: 'Calculus II', topic: 'Reviewing Integrals', percent: 75, startDay: 'MON', endDay: 'THU' },
-    { id: '2', subject: 'Biology 101', topic: 'Cell Structure', percent: 50, startDay: 'TUE', endDay: 'FRI' },
-    { id: '3', subject: 'Macro-Econ', topic: 'Market Analysis', percent: 30, startDay: 'WED', endDay: 'SAT' },
-    { id: '4', subject: 'History 404', topic: 'Civil War Overview', percent: 0, startDay: 'MON', endDay: 'SUN' },
-  ]);
+  const [focusScore, setFocusScore] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('studyflow_focusScore');
+      return saved ? parseFloat(saved) : 0.0;
+    }
+    return 0.0;
+  });
+
+  // Tasks (priority queue) - initially empty
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('studyflow_tasks');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  // Exams - initially empty
+  const [exams, setExams] = useState<Exam[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('studyflow_exams');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  // Gantt Items - initially empty
+  const [ganttItems, setGanttItems] = useState<GanttItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('studyflow_ganttItems');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
 
   const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true);
+
+  // Firebase auth sync
+  useEffect(() => {
+    setLoadingAuth(true);
+    const unsubscribe = initAuth(
+      (signedInUser, token) => {
+        setUser(signedInUser);
+        setAuthToken(token);
+        setLoadingAuth(false);
+      },
+      () => {
+        setUser(null);
+        setAuthToken(null);
+        setLoadingAuth(false);
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Save states to localStorage upon changes
+  useEffect(() => {
+    localStorage.setItem('studyflow_sessionTask', sessionTask);
+  }, [sessionTask]);
+
+  useEffect(() => {
+    localStorage.setItem('studyflow_studyHours', studyHours.toString());
+  }, [studyHours]);
+
+  useEffect(() => {
+    localStorage.setItem('studyflow_focusScore', focusScore.toString());
+  }, [focusScore]);
+
+  useEffect(() => {
+    localStorage.setItem('studyflow_tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('studyflow_exams', JSON.stringify(exams));
+  }, [exams]);
+
+  useEffect(() => {
+    localStorage.setItem('studyflow_ganttItems', JSON.stringify(ganttItems));
+  }, [ganttItems]);
+
+  // Auth Operations
+  const login = async () => {
+    try {
+      setLoadingAuth(true);
+      const res = await googleSignIn();
+      if (res) {
+        setUser(res.user);
+        setAuthToken(res.accessToken);
+      }
+    } catch (err) {
+      console.error('Context Sign In error:', err);
+      throw err;
+    } finally {
+      setLoadingAuth(false);
+    }
+  };
+
+  const logoutUser = async () => {
+    try {
+      setLoadingAuth(true);
+      await logout();
+      setUser(null);
+      setAuthToken(null);
+    } catch (err) {
+      console.error('Context Sign Out error:', err);
+    } finally {
+      setLoadingAuth(false);
+    }
+  };
 
   // Timer countdown implementation
   useEffect(() => {
@@ -114,9 +229,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setTimerIsRunning(false);
-            setStudyHours((h) => parseFloat((h + initialTime / 3600).toFixed(1)));
-            // Award slightly higher focus score for completion
-            setFocusScore((score) => Math.min(10, parseFloat((score + 0.1).toFixed(1))));
+            setStudyHours((h) => {
+              const updated = parseFloat((h + initialTime / 3600).toFixed(1));
+              return updated;
+            });
+            setFocusScore((score) => {
+              const updated = Math.min(10, parseFloat((score + 0.5).toFixed(1)));
+              return updated;
+            });
             return 0;
           }
           return prev - 1;
@@ -134,14 +254,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setStudyHours((prev) => parseFloat((prev + hours).toFixed(1)));
   };
 
-  // Completion Rate calculator
+  // Real, derived completion rate calculations without arbitrary values
   const completionRate = useMemo(() => {
-    if (tasks.length === 0) return 100;
+    if (tasks.length === 0) return 0;
     const completedCount = tasks.filter((t) => t.completed).length;
-    // Base standard rate of 88% if tasks unchanged or simple
-    if (tasks.length === 3 && completedCount === 0) {
-      return 88; // Default initial value matching design HTML
-    }
     return Math.round((completedCount / tasks.length) * 100);
   }, [tasks]);
 
@@ -153,8 +269,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       completed: false,
     };
     setTasks((prev) => [...prev, newTask]);
-    // Adjust focus score a bit
-    setFocusScore((score) => Math.min(10, Math.max(1, parseFloat((score - 0.1).toFixed(1)))));
+    // Reward/Adjust focus score slightly based on dynamic goal alignment
+    setFocusScore((score) => Math.min(10, parseFloat((score + 0.1).toFixed(1))));
   };
 
   const toggleTask = (id: string) => {
@@ -167,7 +283,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Reorder for draggable list
+  // Reorder for priority list
   const reorderTasks = (startIndex: number, endIndex: number) => {
     if (startIndex < 0 || startIndex >= tasks.length || endIndex < 0 || endIndex >= tasks.length) return;
     const result = Array.from(tasks);
@@ -239,6 +355,11 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         focusScore,
         weeklyReportEnabled,
         setWeeklyReportEnabled,
+        user,
+        authToken,
+        loadingAuth,
+        login,
+        logoutUser,
       }}
     >
       {children}
@@ -253,3 +374,4 @@ export function useStudy() {
   }
   return context;
 }
+
